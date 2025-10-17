@@ -91,6 +91,7 @@ Accède à Grafana sur [http://localhost:3000](http://localhost:3000)
     ├── ping.png
     └── metrics.png
 ```
+<img width="1536" height="1022" alt="image" src="https://github.com/user-attachments/assets/bd96b7b3-abaf-4b5d-908d-df9334934e2e" />
 
 
 
