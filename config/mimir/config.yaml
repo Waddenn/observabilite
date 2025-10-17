@@ -1,0 +1,57 @@
+##
+# Doc : https://grafana.com/docs/mimir/latest/configure/configuration-parameters/
+## 
+multitenancy_enabled: false
+
+usage_stats:
+  enabled: false
+
+server:
+  http_listen_port: 9090
+  log_level: error
+
+# Configure the server to allow messages up to 100MB.
+grpc_server_max_recv_msg_size: 104857600
+grpc_server_max_send_msg_size: 104857600
+grpc_server_max_concurrent_streams: 1000
+
+limits:
+  compactor_blocks_retention_period: 180d
+  out_of_order_time_window: 10m
+  ingestion_rate: 50000
+  ingestion_burst_size: 500000
+
+distributor:
+  ring:
+    kvstore:
+    store: memberlist
+  pool:
+    health_check_ingesters: true
+
+ingester:
+ring:
+   min_ready_duration: 0s
+   final_sleep: 0s
+   num_tokens: 512
+
+   kvstore:
+    store: inmemory
+    replication_factor: 1
+
+blocks_storage:
+tsdb:
+   dir: /tmp/tsdb
+
+bucket_store:
+   sync_dir: /tmp/tsdb-sync
+
+filesystem:
+   dir: /data/tsdb
+
+compactor:
+data_dir: /tmp/compactor
+
+ruler_storage:
+backend: local
+local:
+ directory: /tmp/rules

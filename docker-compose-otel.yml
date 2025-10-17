@@ -1,0 +1,116 @@
+services:
+
+
+  webapi:
+    build:
+      context: back
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      
+      - DST_OTEL_CLUSTER=dst-rec
+      - OTEL_SERVICE_NAME=air-collecte-webapi
+      # OTEL Metrics
+      - OTEL_METRIC_EXPORT_INTERVAL=15000 # unité = ms ==> 15s
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://alloy:4318/v1/metrics
+      - OTEL_METRICS_EXPORTER=prometheus,otlp
+      #- OTEL_METRICS_EXPORTER=none
+      - OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=http/protobuf
+      
+      # OTEL logs
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://alloy:4318/v1/logs
+      - OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=http/protobuf
+      - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true # Spécifique à python
+      - OTEL_PYTHON_LOG_CORRELATION=true
+      
+      # OTEL Traces
+      - OTEL_TRACES_EXPORTER=otlp,console 
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://alloy:4318/v1/traces
+      - OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
+      
+      # - DEBUGGING_MODE=${DEBUGGING_MODE}
+      # - WEBSOCKET_URL=${WEBSOCKET_URL}
+    ports:
+      - "8000:8000"
+    #  - "5678:5678"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on :
+      db:
+        condition: service_healthy
+
+
+  alloy:
+    image: grafana/alloy
+    ports:
+      - 12345:12345
+      - "4317:4317"   # gRPC
+      - "4318:4318"
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy
+
+
+######################DEBUG
+ ######################## MONITORING ##############################################
+  loki:
+    image: grafana/loki:latest
+    restart: always
+    ports:
+      - "3100:3100" # endpoints pour metriques et push logs
+    command: -config.file=/etc/loki/config.yaml 
+    #-config.expand-env=true
+    volumes:
+      - ./config/loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+
+  grafana:
+    restart: always
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000" # UI
+    volumes:
+      # Configuration des dashboards (bind mount pour config)
+    #  - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+      # Données Grafana (volume nommé pour persistance)
+      - grafana-data:/var/lib/grafana/
+    depends_on:
+      - loki
+      - tempo
+      - mimir
+
+  tempo:
+    image: grafana/tempo:latest
+    restart: always
+    user: "0:0"
+    ports:
+      - "3200:3200"   # Listener
+      - "4319:4317"   # gRPC
+      - "4320:4318"   # OTEL HTTP
+    command: 
+     - --config.file=/etc/tempo/config.yaml 
+    volumes:
+      - ./config/tempo/config.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/tmp/tempo
+
+  mimir:
+    image: grafana/mimir:latest
+    restart: always
+    ports:
+      - "9090:9090"   # endpoints pour metriques et push métriques
+    command: -config.file=/etc/mimir/config.yaml 
+    #-config.expand-env=true
+    volumes:
+      - ./config/mimir/config.yaml:/etc/mimir/config.yaml:ro
+      - mimir-tmp:/tmp
+      - mimir-data:/data
+      - mimir-rules:/tmp/rules
+
+volumes:
+  loki-data:
+  grafana-data:
+  tempo-data:
+  mimir-data:
+  mimir-tmp:
+  mimir-rules:

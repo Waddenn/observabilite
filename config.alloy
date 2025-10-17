@@ -1,0 +1,81 @@
+
+livedebugging {
+  enabled = true
+}
+
+/************************* OPEN TELEMETRY  ******************************/
+
+
+////// Reception des signaux: Metric, Logs et Traces
+otelcol.receiver.otlp "otel_receiver" {
+  // On utilise pas le grpc
+  grpc { 
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    logs    = [otelcol.processor.batch.default_batch.input]
+    metrics = [otelcol.processor.attributes.metrics.input]
+    traces  = [otelcol.processor.batch.default_batch.input]
+  }
+}
+///otelcol.connector.servicegraph.traces_connector.input
+otelcol.processor.attributes  "metrics" {
+  action {
+      key = "cluster"
+      value = "dst-rec"
+      action = "upsert"
+  }
+
+  output {
+    metrics = [otelcol.exporter.prometheus.mimir.input]
+  }
+}
+
+
+otelcol.exporter.prometheus "mimir" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://mimir:9090/api/v1/push"
+  }
+}
+
+////// Batch: traitements. Ex: ajouter des tags ...
+otelcol.processor.batch "default_batch" {
+  output {
+    logs    = [otelcol.exporter.loki.loki_exporter.input]
+    traces = [otelcol.exporter.otlphttp.tempo_otel.input]
+  }
+}
+
+////// Export vers loki, tempo et mimir
+otelcol.exporter.loki  "loki_exporter" {
+  forward_to = [loki.write.loki.receiver]
+}
+
+loki.write "loki" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+loki.write "loki_old" {
+  endpoint {
+    url = "https://loki-lgtm.groupe.intra/loki/api/v1/push"
+    tls_config { insecure_skip_verify = true }
+  }
+}
+
+otelcol.exporter.otlphttp  "tempo_otel" {
+  client {
+    endpoint = "http://tempo:4318"
+  }
+}
+
+
