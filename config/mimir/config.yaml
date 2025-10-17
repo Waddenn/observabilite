@@ -1,57 +1,42 @@
-##
-# Doc : https://grafana.com/docs/mimir/latest/configure/configuration-parameters/
-## 
-multitenancy_enabled: false
-
-usage_stats:
-  enabled: false
-
 server:
-  http_listen_port: 9090
-  log_level: error
+  http_listen_port: 9009
+  log_level: info
 
-# Configure the server to allow messages up to 100MB.
-grpc_server_max_recv_msg_size: 104857600
-grpc_server_max_send_msg_size: 104857600
-grpc_server_max_concurrent_streams: 1000
-
-limits:
-  compactor_blocks_retention_period: 180d
-  out_of_order_time_window: 10m
-  ingestion_rate: 50000
-  ingestion_burst_size: 500000
-
+# Anneaux en mémoire pour un mode "tout-en-un"
 distributor:
   ring:
     kvstore:
-    store: memberlist
-  pool:
-    health_check_ingesters: true
+      store: inmemory
 
 ingester:
-ring:
-   min_ready_duration: 0s
-   final_sleep: 0s
-   num_tokens: 512
-
-   kvstore:
-    store: inmemory
+  ring:
+    kvstore:
+      store: inmemory
     replication_factor: 1
 
-blocks_storage:
-tsdb:
-   dir: /tmp/tsdb
-
-bucket_store:
-   sync_dir: /tmp/tsdb-sync
-
-filesystem:
-   dir: /data/tsdb
+store_gateway:
+  sharding_ring:
+    kvstore:
+      store: inmemory
 
 compactor:
-data_dir: /tmp/compactor
+  data_dir: /data/compactor
+  sharding_ring:
+    kvstore:
+      store: inmemory
 
-ruler_storage:
-backend: local
-local:
- directory: /tmp/rules
+# Stockage blocs local (filesystem)
+blocks_storage:
+  backend: filesystem
+  tsdb:
+    dir: /data/tsdb
+  bucket_store:
+    sync_dir: /data/tsdb-sync
+
+# Chemin des règles (pas de "ruler.storage")
+ruler:
+  rule_path: /data/rules
+
+# Exposer un endpoint Prometheus compatible
+api:
+  prometheus_http_prefix: /prometheus

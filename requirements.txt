@@ -10,11 +10,12 @@
 # pydantic==2.5.0
 # python-multipart==0.0.6
 fastapi[standard]==0.115.6
-unicorn==2.1.1
+uvicorn[standard]==0.30.6
 redis==6.1.0
 python-json-logger
-
+prometheus-client
 
 opentelemetry-distro
 opentelemetry-exporter-otlp
 opentelemetry-exporter-prometheus
+
