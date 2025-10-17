@@ -92,7 +92,5 @@ Accède à Grafana sur [http://localhost:3000](http://localhost:3000)
     └── metrics.png
 ```
 
----
-
 
 
